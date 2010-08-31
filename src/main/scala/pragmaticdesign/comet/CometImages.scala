@@ -17,42 +17,37 @@ import scalax.io.Path.Matching.File
 import scalax.io.Path
 
 class CometImages extends CometActor {
-	
+	val outerId = "outer"
 	// The following specifies a default prefix
 	override def defaultPrefix = Full("message") 
 	
 	// Intial bindings
 	def render = {
-    bind("message" -> images)
+    bind("message" -> <span id={outerId}>{body}</span>)
 	}
-
-  val extensions = List("png","jpg","jpeg","bmp","gif","tif","tiff")
 
   var timestamps = Map[Path,Long]()
 
-  def imgTag(path: Path, timeStamp:Option[String] = None) = {
+  def imgTag(path: Path) = {
     timestamps += (path -> path.lastModified)
-    val timeParam = (timeStamp.map{t =>"?time=" + path.lastModified}.getOrElse(""))
-    val src = "/api/img/" + path.name + timeParam
+    val src = "/api/thumb/" + path.name + "?time=" + path.lastModified
     <img src={src} alt={path.name} title={path.name}/>
   }
 
   def tagId(path: Path): String = "_img" + path.name.replaceAll("\\.", "_")
 
-  def images = {
+  def images = (ImageActor !? Directories).asInstanceOf[List[Path]]
+
+  def body = {
+    timestamps = Map()
     ImageServices.imageDir match {
       case Full(dir) =>
 
-        val images =
-          dir.children().collect {
-            case File(path) if path.extension forall {e => extensions contains e} =>
-              <td id={tagId(path)}>{imgTag(path)}</td>
-          }
-
+        val imagesCells = images map { path => <td id={tagId(path)}>{imgTag(path)}</td> }
         <span>
           <p id="time"></p>
           <table>
-          {images.sliding(4) map {row => <tr>{row}</tr>}}
+          {imagesCells.sliding(4,4) map {row => <tr>{row}</tr>}}
           </table>
         </span>
       case _ =>
@@ -61,23 +56,32 @@ class CometImages extends CometActor {
     
   }
 	// this is called 10sec after the instance is created
-	ActorPing.schedule(this, FindChanges, 500L)
+	ActorPing.schedule(this, FindChanges, ImageActor.REFRESH_TIME)
 
 	override def lowPriority: PartialFunction[Any,Unit] = {
 		case FindChanges => {
-      val changes = for {
-          (path,lastModified) <- timestamps
-          if lastModified < path.lastModified
-        } yield  {
-        val img = imgTag(path, Some(timeNow.toString))
-			  partialUpdate(SetHtml(tagId(path), img))
-        path
-      }
+      val all = images
+      val remaining = timestamps.filter{all contains _._1}
+      val added = all.collect{case path if !timestamps.keySet.contains(path) => imgTag(path)}
+      val removed = timestamps -- remaining.keySet
 
-      if(changes.nonEmpty) {
-        partialUpdate(SetHtml("time", Str("Updated "+changes.mkString(", ")+" at "+timeNow.toString)))
+      if(added.nonEmpty || removed.nonEmpty) {
+        partialUpdate(SetHtml(outerId, body))
+      } else {
+        val changes = for {
+            (path,lastModified) <- remaining
+            if lastModified < path.lastModified
+          } yield  {
+          val img = imgTag(path)
+          partialUpdate(SetHtml(tagId(path), img))
+          path.name
+        }
+
+        if(changes.nonEmpty) {
+          partialUpdate(SetHtml("time", Str("Updated "+changes.mkString(", ")+" at "+timeNow.toString)))
+        }
       }
-			ActorPing.schedule(this, FindChanges, 500L)
+			ActorPing.schedule(this, FindChanges, ImageActor.REFRESH_TIME)
 		}
 	}
 }

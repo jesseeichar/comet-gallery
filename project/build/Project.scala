@@ -14,6 +14,7 @@ class LiftProject(info: ProjectInfo) extends DefaultWebProject(info) with IdeaPr
   override def libraryDependencies = Set(
     "net.liftweb" %% "lift-webkit" % liftVersion % "compile->default" withSources(),
     "net.liftweb" %% "lift-util" % liftVersion % "compile->default" withSources (),
+    "net.liftweb" %% "lift-imaging" % liftVersion % "compile->default" withSources (),
     "net.liftweb" %% "lift-common" % liftVersion % "compile->default" withSources (),
     "net.liftweb" %% "lift-testkit" % liftVersion % "compile->default",
     "org.mortbay.jetty" % "jetty" % "6.1.22" % "test->default",

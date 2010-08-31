@@ -14,7 +14,7 @@ import net.liftweb.common.{Full, Box}
  */
 
 object ImageActor extends LiftActor {
-  private val REFRESH_TIME = 500
+  val REFRESH_TIME = 500L
   private val EXTENSIONS = List("png","jpg","jpeg","bmp","gif","tif","tiff")
 
   private var images = List[Path]()
@@ -24,9 +24,9 @@ object ImageActor extends LiftActor {
     case Directories =>
       if(lastUpdate < (System.currentTimeMillis - REFRESH_TIME)) {
         images = ImageServices.imageDir match {
-          case Full(dir) => dir.children().filter { p => p.isFile && (p.extension forall {e => EXTENSIONS contains e}) } toList
+          case Full(dir) => dir.children().filter { p => p.isFile && (p.extension forall {e => EXTENSIONS contains (e.toLowerCase)}) } toList
           case _ => Nil
-      }
+        }
       }
       reply (images)
       

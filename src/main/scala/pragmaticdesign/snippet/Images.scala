@@ -24,7 +24,7 @@ class Images {
         require(dir.isDirectory, "the "+dir+" must be a directory")
         val images =
           dir.children().collect {
-            case File(path) if path.extension forall {e => extensions contains e} =>
+            case File(path) if path.extension forall {e => extensions contains e.toLowerCase} =>
               <tr><td><img src={"/api/img/"+path.name} alt={path.name} title={path.name}/></td></tr>
           }
 
